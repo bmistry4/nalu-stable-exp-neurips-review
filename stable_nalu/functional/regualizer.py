@@ -1,3 +1,4 @@
+import math
 
 import torch
 
@@ -8,6 +9,14 @@ def l1(params):
     for param in params:
         l1 += torch.norm(param, 1)
     return l1
+
+
+def lp_norm(params, p):
+    # calc Lp error over all params in the network
+    loss = 0
+    for param in params:
+        loss += torch.norm(param, p)
+    return loss
 
 def huber(params):
     # calc huber score for all params in the network
@@ -106,3 +115,12 @@ class Regualizer:
     def _realnpu_bias_linear(self, W: list):
         # penalise {-1,0,1} on W_re
         return self._nac_bias_linear(W[0])
+
+    def _concat_cancel_linear(self, W):
+        # for nmru based models - penalises when weights are 1 for both mul and recip
+        # if mul weight=1 AND recip weight=1 then penalty=2. All other discrete weight combos have penalty of 0
+        input_size = W.shape[1] // 2    # half the number of input features (because it's concatenated)' W=[O,2I]
+        mul_weights = W[:, :input_size]
+        recip_weights = W[:, input_size:]
+        penalty = 1 - torch.cos(mul_weights * recip_weights * math.pi)
+        return torch.mean(torch.sum(penalty, 1),0)  # take mean to account for output size >1
