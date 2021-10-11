@@ -15,13 +15,14 @@ class NoRandomScope:
         return False
 
 class ExtendedTorchModule(torch.nn.Module):
-    def __init__(self, default_name, *args, writer=None, name=None, **kwargs):
+    def __init__(self, default_name, *args, writer=None, name=None, use_robustness_exp_logging=False, **kwargs):
         super().__init__()
         if writer is None:
             writer = DummySummaryWriter()
 
         self.writer = writer.namespace(default_name if name is None else name)
         self.allow_random = True
+        self.use_robustness_exp_logging = use_robustness_exp_logging
 
     def set_parameter(self, name, value):
         parameter = getattr(self, name, None)
@@ -72,6 +73,18 @@ class ExtendedTorchModule(torch.nn.Module):
         for module in self.children():
             if isinstance(module, ExtendedTorchModule):
                 module.log_gradient_elems()
+
+    def log_learnable_parameters(self):
+        # log each learnable weight in the network.
+        # Individual elements for a parameter can be accessed via 1D indexing during the parsing stage.
+        for name, parameter in self.named_parameters(recurse=False):
+            if parameter.requires_grad:
+                for i, elem in enumerate(parameter.view(-1)):
+                    self.writer.add_scalar(f'param/{name}/{i}', elem, verbose_only=False)
+
+        for module in self.children():
+            if isinstance(module, ExtendedTorchModule):
+                module.log_learnable_parameters()
 
     def log_gradients_mse_normalised(self, residual):
         # log the gradient of each unit without considering the scaling of the residual factor (in the partial derivatives when using a mse loss)

@@ -43,6 +43,7 @@ class ReRegualizedLinearMNACLayer(ExtendedTorchModule):
         self.W = torch.nn.Parameter(torch.Tensor(out_features, in_features))
         self.register_parameter('bias', None)
         self.use_noise = kwargs['nmu_noise']
+        self.noise_range = kwargs['noise_range']
 
     def reset_parameters(self):
         std = math.sqrt(0.25)
@@ -66,7 +67,7 @@ class ReRegualizedLinearMNACLayer(ExtendedTorchModule):
 
     def forward(self, x, reuse=False):
         if self.use_noise and self.training:
-            noise = torch.Tensor(x.shape).uniform_(1, 5).to(self.W.device)  # [B,I]
+            noise = torch.Tensor(x.shape).uniform_(self.noise_range[0], self.noise_range[1]).to(self.W.device)  # [B,I]
             x *= noise
             
         if self.allow_random:
@@ -77,8 +78,8 @@ class ReRegualizedLinearMNACLayer(ExtendedTorchModule):
             else self.W
 
         self.writer.add_histogram('W', W)
-        self.writer.add_tensor('W', W)
-        self.writer.add_scalar('W/sparsity_error', sparsity_error(W), verbose_only=False)
+        self.writer.add_tensor('W', W, verbose_only=False if self.use_robustness_exp_logging else True)
+        self.writer.add_scalar('W/sparsity_error', sparsity_error(W), verbose_only=self.use_robustness_exp_logging)
 
 
         if self.mnac_normalized:

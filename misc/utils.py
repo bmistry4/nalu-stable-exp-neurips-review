@@ -1,6 +1,15 @@
 import torch
 
 
+def set_pytorch_precision(float_precision):
+    if float_precision == 32:
+        torch.set_default_dtype(torch.float32)
+    elif float_precision == 64:
+        torch.set_default_dtype(torch.float64)
+    else:
+        raise ValueError(f'Unsupported pytorch_precision option ({float_precision})')
+
+
 def print_model_params(model):
     for name, param in model.named_parameters():
         if param.requires_grad:

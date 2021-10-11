@@ -229,6 +229,13 @@ load.and.merge.csvs = function(lookup.name) {
     ),
       list('L1 off', 'L1 on')
     ),
+    "nips-realnpu-L2" = npu.csv.merger(list(
+      paste('/data/bm4g15/nalu-stable-exp/csvs/', 'SLTR_RealNPU_variations-r-L1F', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/', 'SLTR_realnpu-eps32', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/', 'SLTR_RealNPU_variations-r-L2', csv_ext, sep = '')
+    ),
+      list('No reg', 'L1', 'L2')
+    ),
     "nips-realnpu-L1_sweep" = npu.csv.merger(list(
       paste(load_folder, 'SLTR_RealNPU_L1_sweep_1e-11_1e-9', csv_ext, sep = ''),
       paste(load_folder, 'SLTR_realnpu-eps32', csv_ext, sep = ''),
@@ -253,7 +260,7 @@ load.and.merge.csvs = function(lookup.name) {
         paste('/data/bm4g15/nalu-stable-exp/csvs/SLTR_RealNPU/', 'SLTR_RealNPU_M-S40000-E50000-G1', csv_ext, sep = ''),
         paste('/data/bm4g15/nalu-stable-exp/csvs/SLTR_RealNPU/', 'SLTR_RealNPU_M-S40000-E50000-G1-W1', csv_ext, sep = '')
     ),
-      list('None','G', 'GW')
+      list('None', 'G', 'GW')
     ),
     "nips-realnpu-init" = npu.csv.merger(list(
       paste('/data/bm4g15/nalu-stable-exp/csvs/SLTR_RealNPU/', 'SLTR_RealNPU_M-S40000-E50000-G1-W1', csv_ext, sep = ''),
@@ -331,6 +338,52 @@ load.and.merge.csvs = function(lookup.name) {
       paste('/data/bm4g15/nalu-stable-exp/csvs/SLTR_RealNPU_inSize-10/', 'SLTR_RealNPU_in10_mod_W-nau-reg', csv_ext, sep = '')
     ),
       list('{-1,1}', '{-1,0,1}')
+    ),
+    "nips-sltr-in2-benford" = npu.csv.merger(list(
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'RealNPU-mod_inSize2_benford', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-2_NRU_lr-1', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-2_signNMRU-gnc-1_lr-1e-2', csv_ext, sep = '') 
+      
+    ),
+      list('Real NPU (modified)', 'NRU', 'NMRU')
+    ),
+    "nips-sltr-in10-benford" = npu.csv.merger(list(
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'RealNPU-mod_inSize10_benford', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-10_NRU_lr-1e-3', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-10_signNMRU-gnc-1_lr-1e-2', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-10_signNMRU-gnc-1_lr-1e-2_stochastic-0.1-0.5', csv_ext, sep = '')
+
+    ),
+      list('Real NPU (modified)', 'NRU', 'NMRU', 'Stochastic NMRU')
+    ),
+    "nips-sltr-in2-rebuttal" = npu.csv.merger(list(
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'RealNPU-mod_inSize2', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'inSize-2_NRU_lr-1', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'inSize-2_signNMRU-gnc-1_lr-1e-2', csv_ext, sep = ''),
+      
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'RealNPU-mod_inSize2_benford', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-2_NRU_lr-1', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-2_signNMRU-gnc-1_lr-1e-2', csv_ext, sep = '')  
+      
+    ),
+      list('Real NPU (modified)', 'NRU', 'NMRU',
+           'Real NPU (modified)', 'NRU', 'NMRU'
+      )
+    ),
+    "nips-sltr-in10-rebuttal" = npu.csv.merger(list(
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'RealNPU-mod_inSize10', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'inSize-10_NRU_lr-1e-3', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'inSize-10_signNMRU-gnc-1_lr-1e-2', csv_ext, sep = ''),
+      
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'RealNPU-mod_inSize10_benford', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-10_NRU_lr-1e-3', csv_ext, sep = ''),
+      paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'benford_inSize-10_signNMRU-gnc-1_lr-1e-2', csv_ext, sep = '')
+      #paste('/data/bm4g15/nalu-stable-exp/csvs/neurips2021_rebuttal/', 'inSize-10_signNMRU-gnc-1_lr-1e-2_stochastic-0.1-0.5', csv_ext, sep = '')
+
+    ),
+      list('Real NPU (modified)', 'NRU', 'NMRU', 
+           'Real NPU (modified)', 'NRU', 'NMRU'
+      )
     )
   ))
 }
