@@ -80,6 +80,13 @@ load.and.merge.csvs = function(lookup.name) {
     ),
       list('L1 off', 'L1 on')
     ),
+    "nips-realnpu-L2" = npu.csv.merger(list(
+      paste('/data/nalms/csvs/sltr-in2/realnpu-modifications/', 'L1F', csv_ext, sep = ''),
+      paste('/data/nalms/csvs/sltr-in2/', 'realnpu_baseline', csv_ext, sep = ''),
+      paste('/data/nalms/csvs/sltr-in2/realnpu-modifications/', 'L2', csv_ext, sep = '')
+    ),
+      list('No reg', 'L1', 'L2')
+    ),
     "nips-realnpu-L1_sweep" = npu.csv.merger(list(
       paste('/data/nalms/csvs/sltr-in2/realnpu-modifications/L1_beta_sweep/', '1e-11_1e-9', csv_ext, sep = ''),
       paste('/data/nalms/csvs/sltr-in2/', 'realnpu_baseline', csv_ext, sep = ''),
@@ -153,6 +160,20 @@ load.and.merge.csvs = function(lookup.name) {
       paste('/data/nalms/csvs/sltr-in10/', 'realnpu_modified_W-nau-reg', csv_ext, sep = '')
     ),
       list('{-1,1}', '{-1,0,1}')
+    ),
+    "nips-in2-distributions" = npu.csv.merger(list(
+      paste('/data/nalms/csvs/sltr-in2/distributions/', 'realnpu_modified', csv_ext, sep = ''),
+      paste('/data/nalms/csvs/sltr-in2/distributions/', 'nru', csv_ext, sep = ''),
+      paste('/data/nalms/csvs/sltr-in2/distributions/', 'sign-nmru', csv_ext, sep = '')
+    ),
+      list('Real NPU (modified)', 'NRU', 'NMRU')
+    ),
+    "nips-in10-distributions" = npu.csv.merger(list(
+      paste('/data/nalms/csvs/sltr-in10/distributions/', 'realnpu_modified', csv_ext, sep = ''),
+      paste('/data/nalms/csvs/sltr-in10/distributions/', 'nru', csv_ext, sep = ''),
+      paste('/data/nalms/csvs/sltr-in10/distributions/', 'sign-nmru', csv_ext, sep = '')
+    ),
+      list('Real NPU (modified)', 'NRU', 'NMRU')
     )
   ))
 }

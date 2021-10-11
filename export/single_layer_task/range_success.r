@@ -13,6 +13,7 @@ merge_mode <- args[6] # if 'None' then just loads single file. Otherwise looks u
 merge_mode=ifelse(is.na(merge_mode), 'None', merge_mode)  # no passed arg becomes 'None' i.e. single model plot
 parameter_value <- args[7]  # type of experiment e.g. extrapolation.ranges (see exp_setups for value options)
 parameter_value=ifelse(is.na(parameter_value), 'extrapolation.range', parameter_value) # is no argument given then assume you want extrapolation.range
+model_names_list <- args[8]  # the order for the categorical variables to appear. Example of passing args: "Real NPU (baseline), Real NPU (modified), NRU, NMRU"
 csv_ext = '.csv'
 
 library(ggplot2)
@@ -25,6 +26,9 @@ source('./_single_layer_task_expand_name.r')
 source('../_compute_summary.r')
 source('../_plot_parameter.r')
 source('./npu_csv_merger.r')
+
+# prase command line args for x axis model names. 
+#model_names_list = strsplit(model_names_list, ", ")[[1]]
 
 best.range = 5000
 
@@ -113,19 +117,20 @@ p = ggplot(dat.gather, aes(x = parameter, colour=model, group=interaction(parame
   geom_errorbar(aes(ymin = lower.value, ymax = upper.value), position=position_dodge(width=0.3), alpha=0.5) +
   # for a custom label order replace labels = model.to.exp(levels(dat.gather$model)) with limits=c(<"model1">, <"model2">, <"model3">) (copied from npu_csv_merger.r)
   #scale_color_discrete("", limits=c('None', 'G', 'W', 'GW')) +         # legend title and ordering 
+  #scale_color_discrete("", limits=c(model_names_list)) +               # legend title and ordering when model names order is given through cmmd line arg
   scale_color_discrete(labels = model.to.exp(levels(dat.gather$model))) + 
   scale_x_discrete(name = name.label) +
   scale_y_continuous(name = element_blank(), limits=c(0,NA)) +
   scale_shape(guide = FALSE) +
   facet_wrap(~ key, scales='free_y', labeller = labeller(
     key = c(
-      success.rate = "Success rate"
+      success.rate = "Extrapolation range success rate"
     )
   )) +
   theme(legend.position="bottom") +
   theme(plot.margin=unit(c(5.5, 10.5, 5.5, 5.5), "points")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) #+
-  #guides(col = guide_legend(nrow = 2, byrow = TRUE)) #+      # wrap legend around n rows
+  #guides(col = guide_legend(nrow = 2, byrow = TRUE))      # wrap legend around n rows
 
 ggsave(name.output, p, device="pdf", width = 5, height = 5.7, scale=1.4, units = "cm")
 write.csv(dat.gather, paste(results_folder, base_filename, '_', op, '_plot_data.csv', sep=''))  # ADDED: save results table 
