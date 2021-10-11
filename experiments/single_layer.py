@@ -269,22 +269,6 @@ parser.add_argument('--nau-noise',
                     default=False,
                     help='Applies/ unapplies additive noise from a ~U[1,5] during training.')
 
-parser.add_argument('--W-set-count',
-                    action='store',
-                    default=5,
-                    type=int,
-                    help='Number of independant weight matricies to use for NAU in relaxed param sharing.')
-parser.add_argument('--weight-pull-start',
-                    action='store',
-                    default=10000,
-                    type=int,
-                    help='Start linear scaling of pull factor for relaxed weight sharing at this step (epoch).')
-parser.add_argument('--weight-pull-end',
-                    action='store',
-                    default=150000,
-                    type=int,
-                    help='Stop linear scaling of pull factor for relaxed weight sharing at this step (epoch).')
-
 parser.add_argument('--no-save',
                     action='store_true',
                     default=False,
@@ -332,22 +316,46 @@ parser.add_argument('--nru-div-mode',
                     action='store',
                     default='div',
                     choices=['div', 'div-sepSign'],
-                    help='Division type for NRU. div calcs mad and sign in one go. div-sepSign calcs sign separately')
+                    help='Division type for NRU. div calcs mag and sign in one go. div-sepSign calcs sign separately')
 parser.add_argument('--realnpu-reg-type',
                     action='store',
                     default='W',
                     choices=['W', 'bias'],
                     help='W penalises {-1,1}. bias penalises {-1,0,1}.')
 
+parser.add_argument('--lp-norm',
+                    action='store',
+                    default=1,
+                    type=int,
+                    help='The norm value. Supports L1 and L2. Default is L1.')
+
+parser.add_argument('--sample-distribution',
+                        action='store',
+                        nargs='+',
+                        default=['uniform'],
+                        help='Distribution to sample from including any parameters. (uniform), '
+                             '(truncated-normal, mean, std), (exponential, scale), (benford). Range info is covered by the'
+                             'interpolation and extrapolation ranges.')
+parser.add_argument('--noise-range',
+                    action='store',
+                    default=[1, 5],
+                    type=ast.literal_eval,
+                    help='Range at which the noise for applying stochasticity is taken from. (Originally for sNMU.)')
+
+def parse_sample_distribution_args(parameter_info):
+    allowed_distributions = ['uniform', 'truncated-normal', 'exponential', 'benford']
+    if parameter_info[0] not in allowed_distributions:
+        raise ValueError(f"Invalid sample-distribution family given. Allowed distributions:  {allowed_distributions}")
+    # assumes first parameter is the distribution family (a string) and the rest of the parameters are floats
+    for idx in range(1, len(parameter_info)):
+        parameter_info[idx] = float(parameter_info[idx])
+    return tuple(parameter_info)
+
+
 args = parser.parse_args()
+args.sample_distribution = parse_sample_distribution_args(args.sample_distribution)
 
-if args.pytorch_precision == 32:
-  torch.set_default_dtype(torch.float32)
-elif args.pytorch_precision == 64:
-  torch.set_default_dtype(torch.float64)
-else:
-  raise ValueError(f'Unsupported pytorch_precision option ({args.pytorch_precision})')
-
+utils.set_pytorch_precision(args.pytorch_precision)
 setattr(args, 'cuda', torch.cuda.is_available() and not args.no_cuda)
 
 # Print configuration
@@ -364,6 +372,7 @@ print(f'  - max_iterations: {args.max_iterations}')
 print(f'  - batch_size: {args.batch_size}')
 print(f'  - seed: {args.seed}')
 print(f'  -')
+print(f'  - sample_distribution: {args.sample_distribution}')
 print(f'  - interpolation_range: {args.interpolation_range}')
 print(f'  - extrapolation_range: {args.extrapolation_range}')
 print(f'  - input_size: {args.input_size}')
@@ -401,6 +410,7 @@ print(f'  - regualizer_beta_end: {args.regualizer_beta_end}')
 print(f'  - regualizer_beta_step: {args.regualizer_beta_step}')
 print(f'  - regualizer_beta_growth: {args.regualizer_beta_growth}')
 print(f'  - regualizer_l1: {args.regualizer_l1}')
+print(f'  - lp_norm: {args.lp_norm}')
 print(f'  - regualizer-npu-w: {args.regualizer_npu_w}')
 print(f'  - regualizer-gate: {args.regualizer_gate}')
 print(f'  - npu-clip: {args.npu_clip}')
@@ -408,12 +418,9 @@ print(f'  - npu-Wr-init: {args.npu_Wr_init}')
 print(f'  -')
 print(f'  - pytorch-precision: {torch.get_default_dtype()}')
 print(f'  -')
+print(f'  - noise_range: {args.noise_range}')
 print(f'  - nmu-noise: {args.nmu_noise}')
 print(f'  - nau-noise: {args.nau_noise}')
-print(f'  -')
-print(f'  - W-set-count: {args.W_set_count}')
-print(f'  - weight-pull-start: {args.weight_pull_start}')
-print(f'  - weight-pull-end: {args.weight_pull_end}')
 print(f'  -')
 print(f'  - no-save: {args.no_save}')
 print(f'  - load-checkpoint: {args.load_checkpoint}')
@@ -428,6 +435,24 @@ print(f'  - clip-grad-norm: {args.clip_grad_norm}')
 print(f'  - nru_div_mode: {args.nru_div_mode}')
 print(f'  - realnpu_reg_type: {args.realnpu_reg_type}')
 print(f'  -')
+
+def get_sample_distribution_writer_value():
+    family = args.sample_distribution[0]
+    if family == 'uniform':
+        return 'u'
+    elif family == 'truncated-normal':
+        # get the interpolation and extrapolation metrics
+        interp_mean = args.sample_distribution[1]
+        interp_std = args.sample_distribution[2]
+        extrap_mean = args.sample_distribution[3]
+        extrap_std = args.sample_distribution[4]
+        # make into ints to save space on writer
+        return f'tn-{int(interp_mean)}-{int(interp_std)}-{int(extrap_mean)}-{int(extrap_std)}'
+    elif family == 'exponential':
+        scale = args.sample_distribution[1]
+        return f'e-{str(scale)}'
+    elif family == 'benford':
+        return 'b'
 
 
 def get_npu_Wr_init_writer_value():
@@ -487,6 +512,8 @@ summary_writer = stable_nalu.writer.SummaryWriter(
     f'_h{args.hidden_size}'
     f'_z{args.num_subsets}'
     f'_lr-{args.optimizer}-{"%.5f" % args.learning_rate}-{args.momentum}'
+    f'_D-{get_sample_distribution_writer_value()}'
+    f'_n-{args.noise_range[0]}-{args.noise_range[1]}'
     f'_L1{"T" if args.regualizer_l1 else f"F"}'
     f'_rb-{args.regualizer_beta_start}-{args.regualizer_beta_end}-{args.regualizer_beta_step}-{args.regualizer_beta_growth}'
     f'_rWnpu-{args.regualizer_npu_w}-{args.realnpu_reg_type[0]}'
@@ -494,12 +521,13 @@ summary_writer = stable_nalu.writer.SummaryWriter(
     f'_r{"H" if args.reg_scale_type == "heim" else f"M"}'
     f'_clip-{args.npu_clip if args.npu_clip != "none" else args.npu_clip[0]}'
     f'_WrI-{get_npu_Wr_init_writer_value()}'
-    f'_p-{args.pytorch_precision}'
+    # f'_p-{args.pytorch_precision}'
     f'_nM{"T" if args.nmu_noise else f"F"}'
-    f'_nA{"T" if args.nau_noise else f"F"}'
-    f'_Bnau{"T" if args.beta_nau else f"F"}'
+    # f'_nA{"T" if args.nau_noise else f"F"}'
+    # f'_Bnau{"T" if args.beta_nau else f"F"}'
     f'_gn-{args.clip_grad_norm if args.clip_grad_norm != None else f"F"}'
-    f'_TB-{args.log_interval}'
+    # f'_L{args.lp_norm}'
+    # f'_TB-{args.log_interval}'
     f'_{get_train_criterion_writer_value()}',
     remove_existing_data=args.remove_existing_data
 )
@@ -525,13 +553,14 @@ dataset = stable_nalu.dataset.SimpleFunctionStaticDataset(
     simple=args.simple,
     use_cuda=args.cuda,
     seed=args.seed,
+    dist_params=args.sample_distribution,
 )
 print(f'  -')
 print(f'  - dataset: {dataset.print_operation()}')
 # Interpolation and extrapolation seeds are from random.org
 dataset_train = iter(dataset.fork(sample_range=args.interpolation_range).dataloader(batch_size=args.batch_size))
 dataset_valid_interpolation_data = next(iter(dataset.fork(sample_range=args.interpolation_range, seed=43953907).dataloader(batch_size=10000)))
-dataset_test_extrapolation_data = next(iter(dataset.fork(sample_range=args.extrapolation_range, seed=8689336).dataloader(batch_size=10000)))
+dataset_test_extrapolation_data = next(iter(dataset.fork(sample_range=args.extrapolation_range, seed=8689336, use_extrapolation=True).dataloader(batch_size=10000)))
 
 # setup model
 model = stable_nalu.network.SingleLayerNetwork(
@@ -551,12 +580,11 @@ model = stable_nalu.network.SingleLayerNetwork(
     nalu_two_gate=args.nalu_two_gate,
     nalu_mul=args.nalu_mul,
     nalu_gate=args.nalu_gate,
-    fixed_gate=False,       # TODO - remove?
     regualizer_gate=args.regualizer_gate,
     regualizer_npu_w=args.regualizer_npu_w,
+    noise_range=args.noise_range,
     nmu_noise=args.nmu_noise,
     nau_noise=args.nau_noise,
-    W_set_count=args.W_set_count,
     beta_nau=args.beta_nau,
     npu_clip=args.npu_clip,
     npu_Wr_init=args.npu_Wr_init,
@@ -569,20 +597,13 @@ if args.cuda:
     model.cuda()
 criterion = torch.nn.MSELoss()
 
-# use when you want separate param_groups for each sub_module for doing optimsiation
-# would require passing in module_params to the optimiser rather than model.parameters()
-#from stable_nalu.abstract import ExtendedTorchModule    # uncomment if using weight sharing where opt uses separate param groups
-#module_params = []
-#for c in model.children():
-#  if isinstance(c, ExtendedTorchModule):
-#    module_params.append({'params': c.parameters()})
-
 if args.optimizer == 'adam':
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 elif args.optimizer == 'sgd':
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate, momentum=args.momentum)
 else:
     raise ValueError(f'{args.optimizer} is not a valid optimizer algorithm')
+
 
 def test_model(data):
     with torch.no_grad(), model.no_internal_logging(), model.no_random():
@@ -591,12 +612,6 @@ def test_model(data):
         err = criterion(model(x), t)
         model.train()
         return err
-
-def calc_W_pull_factor(epoch):
-    # linear growth pull, which grows in given epoch range. Afterwhich pull remains at 1
-    return max(0, min(1, ((epoch - args.weight_pull_start) /
-            (args.weight_pull_end - args.weight_pull_start)
-        )))
 
 
 # Train model
@@ -616,13 +631,6 @@ if use_npu_scaling:
     # Decimal and fp arithmetic don't mix so beta end must also be a decimal
     args.regualizer_beta_end = Decimal(str(args.regualizer_beta_end))
 r_l1_scale = args.regualizer_beta_start
-
-# flag to check if the W set has been averaged (when doing relaxed param sharing) 
-is_Ws_averaged = False
-# weight sharing layer
-wsNAU_layer = True if args.first_layer == 'MultiWeightNAU' or args.layer_type == 'MultiWeightNAU' else False
-# must average either a bit before the bias reg for W starts or a fixed amount after the pull values reaches 1
-pull_reg_max_epoch = max(1000, min(args.regualizer_scaling_start - 7000, args.weight_pull_end + 50000))
 
 '''Resuming previous training'''
 resume_epoch = 0
@@ -666,7 +674,7 @@ for epoch_i, (x_train, t_train) in zip(range(resume_epoch, args.max_iterations +
 
     l1_loss = 0
     if args.regualizer_l1:
-        l1_loss = Regualizer.l1(model.parameters())
+        l1_loss = Regualizer.lp_norm(model.parameters(), args.lp_norm)
         if args.verbose:
             summary_writer.add_scalar('L1/train/L1-loss', l1_loss)
 
@@ -692,7 +700,6 @@ for epoch_i, (x_train, t_train) in zip(range(resume_epoch, args.max_iterations +
     # Acknowledgement: https://discuss.pytorch.org/t/use-pearson-correlation-coefficient-as-cost-function/8739
     vx = y_train - torch.mean(y_train)
     vy = t_train - torch.mean(t_train)
-    # r = torch.sum(vx * vy) / ((torch.sqrt(torch.sum(vx ** 2)) * torch.sqrt(torch.sum(vy ** 2))) + eps)  # + eps to avoid denominator = 0
 
     """
     Acknowledgement: https://www.johndcook.com/blog/2008/11/05/how-to-calculate-pearson-correlation-accurately/
@@ -718,22 +725,10 @@ for epoch_i, (x_train, t_train) in zip(range(resume_epoch, args.max_iterations +
                             args.regualizer_l1 * r_l1_scale * l1_loss + \
                             args.regualizer_npu_w * (r_l1_scale if args.reg_scale_type == 'heim' else r_w_scale) * regualizers['W-NPU'] + \
                             args.regualizer_gate * (r_l1_scale if args.reg_scale_type == 'heim' else r_w_scale) * regualizers['g-NPU'] + \
-                            (torch.norm(model.layer_1.layer.trash_cell, 1) if args.trash_cell else 0)
-                            # calc_W_pull_factor(epoch_i) * (0 if is_Ws_averaged else 1) * regualizers['W-set']
+                            (torch.norm(model.layer_1.layer.trash_cell, 1) if args.trash_cell else 0)  #+ \
+                            # (r_w_scale * regualizers['W-cancel']) if args.clip_grad_norm else 0
 
     loss_train = loss_train_criterion + loss_train_regualizer
-
-    # Averages set of indep. weights if thr req. is met. 
-    # Indep weights will be frozen and no longer used. Adds the new param for the optimizer to track.
-    # if wsNAU_layer and not is_Ws_averaged:
-    #     # + 1000 to avoid averaging as soon as you start tightening param values.
-    #     if (regualizers['W-set'] < 0.05 and epoch_i > args.weight_pull_start + 1000) or epoch_i == pull_reg_max_epoch:
-    #         print('Ws have been averaged')
-    #         avg_W = model.layer_1.layer.average_Ws()
-    #         optimizer.add_param_group({'params': avg_W})
-    #         # Uncomment if you want to remove unused W_i from the opt. (Would require changing init parameters given to optimiser)
-    #         #del optimizer.param_groups[0]
-    #         is_Ws_averaged = True
 
     # Log loss
     if args.verbose or epoch_i % args.log_interval == 0:
