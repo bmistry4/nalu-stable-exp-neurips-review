@@ -89,9 +89,9 @@ class ReRegualizedLinearNACLayer(ExtendedTorchModule):
 
         W = torch.clamp(self.W, -1.0, 1.0)
         self.writer.add_histogram('W', W)
-        self.writer.add_tensor('W', W)
-        self.writer.add_scalar('W/sparsity_error', sparsity_error(W), verbose_only=False)
-        
+        self.writer.add_tensor('W', W, verbose_only=False if self.use_robustness_exp_logging else True)
+        self.writer.add_scalar('W/sparsity_error', sparsity_error(W), verbose_only=self.use_robustness_exp_logging)
+
         out = torch.nn.functional.linear(x, W, self.bias)
         
         if self.use_noise and self.training:

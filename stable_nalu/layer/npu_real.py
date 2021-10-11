@@ -20,16 +20,15 @@ class RealNPULayer(ExtendedTorchModule):
         self.in_features = in_features
         self.out_features = out_features
         self.eps = torch.finfo(torch.float).eps  # 32-bit eps
-        self.fixed_gate = kwargs['fixed_gate']
 
         self.W_real = torch.nn.Parameter(torch.Tensor(in_features, out_features))
         self.g = torch.nn.Parameter(torch.Tensor(in_features))
         self.npu_clip = npu_clip
         self.Wr_init_mode = kwargs['npu_Wr_init']
 
-        self.use_trash_cell = kwargs['trash_cell']
-        if self.use_trash_cell:
-            self.trash_cell = torch.nn.Parameter(torch.Tensor(1))
+        #self.use_trash_cell = kwargs['trash_cell']
+        #if self.use_trash_cell:
+        #    self.trash_cell = torch.nn.Parameter(torch.Tensor(1))
 
         if kwargs['regualizer_npu_w']:
             # penalise {-1,1}
@@ -63,15 +62,16 @@ class RealNPULayer(ExtendedTorchModule):
             r = min(0.5, math.sqrt(3.0) * std)
             torch.nn.init.uniform_(self.W_real, -r, r)
 
-        # torch.nn.init.xavier_normal_(self.W_real)
         torch.nn.init.ones_(self.g)
-        if self.fixed_gate:
-            self.g.requires_grad = False
-        else:
-            self.g.data /= 2.0
+        self.g.data /= 2.0
 
-        if self.use_trash_cell:
-            torch.nn.init.zeros_(self.trash_cell)
+        #if self.use_trash_cell:
+        #    torch.nn.init.zeros_(self.trash_cell)
+
+        # self.W_real = torch.nn.Parameter(torch.Tensor([[-1], [0.]]))
+        # self.g = torch.nn.Parameter(torch.Tensor([1., 1.]))
+        # self.W_real.requires_grad = False
+        # self.g.requires_grad = False
 
     def optimize(self, loss):
         if self.npu_clip == 'none':
@@ -92,14 +92,14 @@ class RealNPULayer(ExtendedTorchModule):
 
     def forward(self, x):
         self.writer.add_histogram('W_real', self.W_real)
-        self.writer.add_tensor('W_real', self.W_real)
-        self.writer.add_scalar('W_real/sparsity_error', sparsity_error(self.W_real), verbose_only=False)
+        self.writer.add_tensor('W_real', self.W_real, verbose_only=False if self.use_robustness_exp_logging else True)
+        self.writer.add_scalar('W_real/sparsity_error', sparsity_error(self.W_real), verbose_only=self.use_robustness_exp_logging)
 
         # eq 13
         g_hat = torch.clamp(self.g, 0.0, 1.0)                                   # [in]
         self.writer.add_histogram('gate', g_hat)
-        self.writer.add_scalar('gate/sparsity_error', sparsity_error(g_hat), verbose_only=False)
-        self.writer.add_tensor('gate', g_hat)
+        self.writer.add_tensor('gate', g_hat, verbose_only=False if self.use_robustness_exp_logging else True)
+        self.writer.add_scalar('gate/sparsity_error', sparsity_error(g_hat), verbose_only=self.use_robustness_exp_logging)
 
         r = torch.abs(x) + self.eps     # eps: in julia code but not paper      # [B, in]
         # * = broadcasted element-wise product
@@ -110,8 +110,8 @@ class RealNPULayer(ExtendedTorchModule):
         # [B, out] = exp([B,in][in, out])) * cos([B,in][in, out])
         z = torch.exp(torch.log(r).matmul(self.W_real)) * torch.cos(k.matmul(self.W_real))
 
-        if self.use_trash_cell and self.training:
-            z = z + self.trash_cell
+        #if self.use_trash_cell and self.training:
+        #    z = z + self.trash_cell
 
         return z    # [B, out]
 

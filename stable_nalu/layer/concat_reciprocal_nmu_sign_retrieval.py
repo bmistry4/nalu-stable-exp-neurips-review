@@ -35,6 +35,10 @@ class ConcatReciprocalNMUSignRetrievalLayer(ExtendedTorchModule):
             shape=regualizer_shape, zero_epsilon=mnac_epsilon,
             zero=self.nac_oob == 'clip'
         )
+        # self._regualizer_cancel = Regualizer(
+        #     support='concat', type='cancel',
+        #     shape='linear', zero_epsilon=0
+        # )
         self._regualizer_nmu_z = RegualizerNMUZ(
             zero=regualizer_z == 0
         )
@@ -42,6 +46,7 @@ class ConcatReciprocalNMUSignRetrievalLayer(ExtendedTorchModule):
         self.W = torch.nn.Parameter(torch.Tensor(out_features, 2*in_features))  # [O, 2I]
         self.register_parameter('bias', None)
         self.use_noise = kwargs['nmu_noise']
+        self.noise_range = kwargs['noise_range']
 
     def reset_parameters(self):
         std = math.sqrt(0.25)
@@ -66,6 +71,7 @@ class ConcatReciprocalNMUSignRetrievalLayer(ExtendedTorchModule):
             'W': self._regualizer_bias(self.W),
             'z': self._regualizer_nmu_z(self.W),
             'W-OOB': self._regualizer_oob(self.W)
+            # 'W-cancel': self._regualizer_cancel(self.W)
         })
 
     def concat_input_reciprocal(self, x):
@@ -81,7 +87,7 @@ class ConcatReciprocalNMUSignRetrievalLayer(ExtendedTorchModule):
         x = torch.abs(x)
 
         if self.use_noise and self.training:
-            noise = torch.Tensor(x.shape).uniform_(1, 5).to(self.W.device)  # [B,I]
+            noise = torch.Tensor(x.shape).uniform_(self.noise_range[0], self.noise_range[1]).to(self.W.device)  # [B,I]
             x *= noise
 
         if self.allow_random:
@@ -92,8 +98,8 @@ class ConcatReciprocalNMUSignRetrievalLayer(ExtendedTorchModule):
             else self.W
 
         self.writer.add_histogram('W', W)
-        self.writer.add_tensor('W', W)
-        self.writer.add_scalar('W/sparsity_error', sparsity_error(W), verbose_only=False)
+        self.writer.add_tensor('W', W, verbose_only=False if self.use_robustness_exp_logging else True)
+        self.writer.add_scalar('W/sparsity_error', sparsity_error(W), verbose_only=self.use_robustness_exp_logging)
 
         magnitude = mnac(x, W, mode='prod')
 
