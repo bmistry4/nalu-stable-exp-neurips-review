@@ -5,6 +5,7 @@ import sys
 import argparse
 
 import stable_nalu
+from stable_nalu.reader.tensorboard_metric_reader import _everything_default_matcher
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Export results from simple function task')
@@ -24,6 +25,10 @@ parser.add_argument('--verbose',
                     action='store_true',
                     default=False,
                     help='Export weights from text summary. For SLTR only')
+parser.add_argument('--weights-only',
+                    action='store_true',
+                    default=False,
+                    help='Only parses the text_summary metrics (from the TEXT tb heading)')
 
 args = parser.parse_args()
 
@@ -43,10 +48,12 @@ def matcher(tag):
 
 reader = stable_nalu.reader.TensorboardMetricReader(
     args.tensorboard_dir,
-    metric_matcher=matcher,
+    # TODO: include everything if you want to parse weights saved as SCALARS
+    metric_matcher=_everything_default_matcher if args.weights_only else matcher,
     step_start=0,
     processes=allowed_processes,
     recursive_weight=args.verbose,
+    weights_only=args.weights_only,
 )
 
 def main():

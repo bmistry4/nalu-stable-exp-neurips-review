@@ -58,7 +58,8 @@ p =
         hard =  "Input: [a,b]; Output: a/b"
       )
     )) +
-    scale_color_discrete(limits=c('RealNPU', 'RealNPU (eps=0)', 'NRU', 'NMRU')) +
+    scale_color_discrete("", limits=c('RealNPU', 'RealNPU (eps=0)', 'NRU', 'NMRU')) +
+    theme(panel.spacing.x=unit(1, "lines")) +
     coord_cartesian(ylim = c(1e-13, 1e+20)) #+     # Set y axis limits manually
     #geom_blank(data = data.frame(
     #  key = c("easy"),

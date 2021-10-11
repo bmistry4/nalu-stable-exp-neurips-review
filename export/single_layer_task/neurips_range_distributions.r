@@ -1,3 +1,4 @@
+# use this script when dealing with multiple distributions e.g. uniform, benford, truncated normal.
 rm(list = ls())
 #setwd(dirname(parent.frame(2)$ofile))
 
@@ -11,8 +12,9 @@ merge_mode <- args[6] # if 'None' then just loads single file. Otherwise looks u
 merge_mode=ifelse(is.na(merge_mode), 'None', merge_mode)  # no passed arg becomes 'None' i.e. single model plot
 parameter_value <- args[7]  # type of experiment e.g. extrapolation.ranges (see exp_setups for value options)
 parameter_value=ifelse(is.na(parameter_value), 'extrapolation.range', parameter_value) # is no argument given then assume you want extrapolation.range
-model_names_list <- args[8]  # the order for the categorical variables to appear. Example of passing args: "Real NPU (baseline), Real NPU (modified), NRU, NMRU"
 csv_ext = '.csv'
+
+test_folder = './test/'
 
 library(ggplot2)
 library(plyr)
@@ -20,13 +22,10 @@ library(dplyr)
 library(tidyr)
 library(readr)
 library(xtable)
-source('./_single_layer_task_expand_name.r')
+source('./_single_layer_distributions_task_expand_name.r')
 source('../_compute_summary.r')
 source('../_plot_parameter.r')
 source('./neurips_csv_merger.r')
-
-# prase command line args for x axis model names.
-#model_names_list = strsplit(model_names_list, ", ")[[1]]
 
 best.range = 5000
 
@@ -56,13 +55,13 @@ safe.interval = function (alpha, vec) {
   return(abs(qt((1 - alpha) / 2, length(vec) - 1)) * (sd(vec) / sqrt(length(vec))))
 }
 
-name.parameter = 'interpolation.range'
+name.parameter = 'distribution'
 name.label = 'Interpolation range'
 name.file = paste(load_folder, base_filename, csv_ext, sep='')
 name.output = paste(results_folder, base_filename, '_', op, '.pdf', sep='')
 
 # single layer task version of funcation_task_static_mse_expectation.csv
-eps = read_csv('./exp_setups.csv') %>%
+eps = read_csv('./exp_distributions_setups.csv') %>%
   filter(simple == FALSE & parameter == parameter_value & operation == op) %>%
   mutate(
     operation = revalue(operation, operation.full.to.short)
@@ -113,15 +112,14 @@ p = ggplot(dat.gather, aes(x = parameter, colour=model, group=interaction(parame
   geom_point(aes(y = mean.value), position=position_dodge(width=0.3)) +
   geom_errorbar(aes(ymin = lower.value, ymax = upper.value), position=position_dodge(width=0.3), alpha=0.5) +
   # for a custom label order replace labels = model.to.exp(levels(dat.gather$model)) with limits=c(<"model1">, <"model2">, <"model3">) (copied from npu_csv_merger.r)
-  #scale_color_discrete("Loss", limits=c('MSE', 'PCC', 'MAPE')) +         # legend title and ordering
-  #scale_color_discrete("", limits=c(model_names_list)) +                 # legend title and ordering when model names order is given through cmmd line arg
-  scale_color_discrete(labels = model.to.exp(levels(dat.gather$model))) +
+  scale_color_discrete("", limits=c('Real NPU (modified)', 'NRU', 'NMRU')) +         # legend title and ordering
+  #scale_color_discrete(labels = model.to.exp(levels(dat.gather$model))) +
   scale_x_discrete(name = name.label) +
   scale_y_continuous(name = element_blank(), limits=c(0,NA)) +
   scale_shape(guide = FALSE) +
   facet_wrap(~ key, scales='free_y', labeller = labeller(
     key = c(
-      success.rate = "Success rate",
+      success.rate = "Extrapolation range success rate",
       converged.at = "Solved at iteration step",
       sparse.error = "Sparsity error"
     )
@@ -135,7 +133,7 @@ p = ggplot(dat.gather, aes(x = parameter, colour=model, group=interaction(parame
 
 ggsave(name.output, p, device="pdf", width = 13.968, height = 5.7, scale=1.4, units = "cm")
 write.csv(dat.gather, paste(results_folder, base_filename, '_', op, '_plot_data.csv', sep=''))  # ADDED: save results table
-write.csv(dat.last, paste(results_folder, base_filename, '_seeds_best', csv_ext, sep=''))            # best result for each seed
-write_csv(filter(dat.last, solved == FALSE) %>% select(parameter, seed),  paste(results_folder, base_filename, '_seeds_failure', csv_ext , sep=''))
+#write.csv(dat.last, paste(results_folder, base_filename, '_seeds_best', csv_ext, sep=''))            # best result for each seed
+#write_csv(filter(dat.last, solved == FALSE) %>% select(parameter, seed),  paste(results_folder, base_filename, '_seeds_failure', csv_ext , sep=''))
 
 print("R Script completed.")

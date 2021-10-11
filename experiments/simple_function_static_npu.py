@@ -526,7 +526,6 @@ model = stable_nalu.network.SimpleFunctionStaticNetwork(
     nalu_two_gate=args.nalu_two_gate,
     nalu_mul=args.nalu_mul,
     nalu_gate=args.nalu_gate,
-    fixed_gate=False,      # TODO - Remove option from NPU and NPUReal
     regualizer_gate=args.regualizer_gate,
     regualizer_npu_w=args.regualizer_npu_w,
     nmu_noise=args.nmu_noise,

@@ -38,11 +38,13 @@ class TensorboardMetricReader:
                  step_start=0,
                  recursive_weight=False,
                  processes=None,
-                 progress_bar=True):
+                 progress_bar=True,
+                 weights_only=False):
         self.dirname = dirname
         self.metric_matcher = metric_matcher
         self.step_start = step_start
         self.recursive_weight = recursive_weight
+        self.weights_only = weights_only
 
         self.processes = processes
         self.progress_bar = progress_bar
@@ -144,13 +146,42 @@ class TensorboardMetricReader:
 
         return dirname, columns
 
+    def _parse_tensorboard_data_for_weights(self, inputs):
+        # only parses the text_summaries, saving each parameter element in it's own column
+        (dirname, filename, reader) = inputs
+
+        columns = collections.defaultdict(list)
+        columns['name'] = dirname
+
+        for e in tf.compat.v1.train.summary_iterator(filename):
+            step = e.step - self.step_start
+
+            for v in e.summary.value:
+                if v.tag.endswith('/text_summary'):
+                    param_name = v.tag.split('/')[-2]
+                    param = _parse_numpy_str(v.tensor.string_val[0][5:-6].decode('ascii'))
+                    param = param.reshape(-1)   # flatten to 1D
+
+                    # plot each element of the parameter in its own column using the index as the element reference
+                    for i, weight in enumerate(param):
+                        col_name = "param." + param_name + "." + str(i)
+                        columns[col_name].append(param[i])
+
+                    # Syncronize the step count with the loss metrics
+                    if len(columns['step']) != len(columns[col_name]):
+                        columns['step'].append(step)
+
+        return dirname, columns
+
     def __iter__(self):
         reader = TensorboardReader(self.dirname, auto_open=False)
         with tqdm(total=len(reader), disable=not self.progress_bar) as pbar, \
              multiprocessing.Pool(self.processes) as pool:
 
             columns_order = None
-            for dirname, data in pool.imap_unordered(self._parse_tensorboard_data, reader):
+            for dirname, data in pool.imap_unordered(
+                    self._parse_tensorboard_data_for_weights if self.weights_only else self._parse_tensorboard_data,
+                    reader):
                 pbar.update()
 
                 # Check that some data is present

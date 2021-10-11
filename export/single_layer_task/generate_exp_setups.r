@@ -22,7 +22,8 @@ for (operation in c('add', 'sub', 'mul', 'div')){
 
 for (operation in c('div')){
   cases = rbind(cases,
-    c(parameter='extrapolation.range', operation=operation, simple=F, input.size=2, subset.ratio=0.5, overlap.ratio=0, range.a=-6, range.b=-2, range.mirror=T)
+    c(parameter='extrapolation.range', operation=operation, simple=F, input.size=2, subset.ratio=0.5, overlap.ratio=0, range.a=100, range.b=1000, range.mirror=F),
+    c(parameter='extrapolation.range', operation=operation, simple=F, input.size=2, subset.ratio=0.5, overlap.ratio=0, range.a=-6, range.b=-2, range.mirror=T)  
   )
 }
 

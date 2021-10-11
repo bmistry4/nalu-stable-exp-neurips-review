@@ -6,8 +6,8 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=bm4g15@soton.ac.uk
 #SBATCH --array=0-224    # 0 to (seeds * |operations|=1 * |ranges|)-1  # seeds=25, range=9
-#SBATCH --output /data/nalms/logs/sltr-in10/logs/SLTR_RealNPU_inSize-10/mod_mape_E100K/slurm-%A_%a.out # TODO: Make sure folder path exists and matches exp name. (Same for err dir).
-#SBATCH --error /data/nalms/logs/sltr-in10/logs/SLTR_RealNPU_inSize-10/mod_mape_E100K/errors/slurm-%A_%a.err # TODO: Make sure folder path exists and matches exp name. (Same for err dir).
+#SBATCH --output /data/nalms/logs/sltr-in10/realnpu_baseline/slurm-%A_%a.out # TODO: Make sure folder path exists and matches exp name. (Same for err dir).
+#SBATCH --error /data/nalms/logs/sltr-in10/realnpu_baseline/errors/slurm-%A_%a.err # TODO: Make sure folder path exists and matches exp name. (Same for err dir).
 
 verbose_flag=''
 no_save_flag='${no_save_flag}'

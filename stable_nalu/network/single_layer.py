@@ -1,7 +1,7 @@
-
 import torch
 from ..abstract import ExtendedTorchModule
 from ..layer import GeneralizedLayer, BasicLayer
+
 
 class SingleLayerNetwork(ExtendedTorchModule):
     UNIT_NAMES = GeneralizedLayer.UNIT_NAMES
@@ -12,16 +12,20 @@ class SingleLayerNetwork(ExtendedTorchModule):
         self.input_size = input_size
         self.nac_mul = nac_mul
         self.eps = eps
-        
+
         # special case: NAC* requires a NAC+ as it's layer. The operation is dealt with in the forward pass of this class
         if unit_name == 'MNAC':
-          unit_name = 'NAC'
-          
+            unit_name = 'NAC'
+
+        # self.norm_unit = GeneralizedLayer(input_size, input_size*2, 'NNU', writer=self.writer, name='norm_layer')
+
         self.layer_1 = GeneralizedLayer(input_size, output_size,
                                         'linear' if unit_name in BasicLayer.ACTIVATIONS else unit_name,
                                         writer=self.writer,
                                         name='layer_1',
                                         eps=eps, **kwags)
+        # self.denorm_unit = GeneralizedLayer(input_size, output_size*2, 'NNU', writer=self.writer, name='norm_layer')
+
         self.reset_parameters()
         self.z_1_stored = None
 
@@ -35,26 +39,27 @@ class SingleLayerNetwork(ExtendedTorchModule):
             })
         else:
             return super().regualizer()
-    
-    def mean_shifted_input(self, input):
-        # (input tensor is passed by value)
-        mean = input.mean(axis=1).unsqueeze(1) # [B,1]
-        input=input-mean # [B,I] -> mean is broadcasted 
-        return mean, input
-    
+
+    def normalise(self, input):
+        return input / input.abs().sum(dim=1).unsqueeze(1)
+
     def forward(self, input):
         self.writer.add_summary('x', input)
+        # inital_input = input
+        # input = self.norm_unit((input, input))
+        # input = self.normalise(inital_input)
 
         # do mulitplicative path (NAC*)
         if self.unit_name == 'MNAC':
             z_1 = torch.exp(self.layer_1(torch.log(torch.abs(input) + self.eps)))
         else:
-            #shift, input = self.mean_shifted_input(input)
             z_1 = self.layer_1(input)
-            #z_1 = z_1 + shift**2    # unshifted result -> [B,O] = [B,O] + [B,1]
 
         self.z_1_stored = z_1
         self.writer.add_summary('z_1', z_1)
+
+        # z_1 = self.denorm_unit((z_1, inital_input))
+
         return z_1
 
     def extra_repr(self):

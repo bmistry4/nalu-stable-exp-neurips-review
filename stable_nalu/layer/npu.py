@@ -20,7 +20,6 @@ class NPULayer(ExtendedTorchModule):
         self.in_features = in_features
         self.out_features = out_features
         self.eps = torch.finfo(torch.float).eps  # 32-bit eps
-        self.fixed_gate = kwargs['fixed_gate']
 
         self.W_real = torch.nn.Parameter(torch.Tensor(in_features, out_features))
         self.W_im = torch.nn.Parameter(torch.Tensor(in_features, out_features))
@@ -55,12 +54,8 @@ class NPULayer(ExtendedTorchModule):
             r = min(0.5, math.sqrt(3.0) * std)
             torch.nn.init.uniform_(self.W_real, -r, r)
 
-        # torch.nn.init.xavier_normal_(self.W_real)
         torch.nn.init.ones_(self.g)
-        if self.fixed_gate:
-            self.g.requires_grad = False
-        else:
-            self.g.data /= 2.0
+        self.g.data /= 2.0
 
     def optimize(self, loss):
         if self.npu_clip == 'none':

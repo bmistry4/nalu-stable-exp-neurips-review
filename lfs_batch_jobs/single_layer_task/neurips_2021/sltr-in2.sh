@@ -168,6 +168,9 @@ python3 experiments/single_layer.py \
 
 # (Real NPU - mixed-signs datasets) -- see separate shell
 
+# (Different distributions) -- see separate shell
+
+
 ############################################## Appendix #########################################################
 ## NRU learning rates
 # lr: 1e-3
@@ -200,4 +203,13 @@ python3 experiments/single_layer.py \
 #    --name-prefix ${experiment_name} --remove-existing-data --no-cuda ${no_save_flag} \
 #    --learning-rate 1e-1
 
+# realnpu reg -> l2 on
+#experiment_name='realnpu-modifications/L2'
+#python3 experiments/single_layer.py \
+#    --operation div --layer-type RealNPU --nac-mul real-npu \
+#    --learning-rate 5e-3 --regualizer-beta-start 1e-7 --regualizer-beta-end 1e-5 \
+#    --regualizer-l1 --regualizer-shape none --regualizer 0 --lp-norm 2 \
+#    --interpolation-range ${interpolation_ranges[i]} --extrapolation-range ${extrapolation_ranges[i]} \
+#    --seed ${seed} --max-iterations 50000 ${verbose_flag}  \
+#    --name-prefix ${experiment_name} --remove-existing-data --no-cuda ${no_save_flag}
 
